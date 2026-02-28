@@ -297,7 +297,7 @@ account:
   uuid:
     en: UUID
   uuid_random:
-    en: Random
+    en: Auto
   add:
     title:
       en: Adding new account

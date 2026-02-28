@@ -5,7 +5,6 @@ use gpui::{prelude::*, *};
 use gpui_component::{
     ActiveTheme as _, Disableable, Icon, IconName, IconNamed, WindowExt, button::{Button, ButtonVariants}, h_flex, input::{Input, InputState}, notification::{Notification, NotificationType}, resizable::{ResizablePanelEvent, ResizableState, h_resizable, resizable_panel}, scroll::ScrollableElement, sidebar::SidebarFooter, tooltip::Tooltip, v_flex
 };
-use rand::Rng;
 use schema::modrinth::ModrinthProjectType;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -442,9 +441,14 @@ impl Render for LauncherUI {
                                                 let uuid = if let Ok(uuid) = Uuid::try_parse(&uuid) {
                                                    uuid
                                                 } else {
-                                                    let uuid: u128 = rand::thread_rng().r#gen();
-                                                    let uuid = (uuid & !0xF0000000000000000000) | 0x30000000000000000000; // set version to 3
-                                                    Uuid::from_u128(uuid)
+                                                    // Minecraft standard offline UUID: MD5("OfflinePlayer:" + username)
+                                                    // Equivalent to Java's UUID.nameUUIDFromBytes()
+                                                    let input = format!("OfflinePlayer:{}", username);
+                                                    let digest = md5::compute(input.as_bytes());
+                                                    let mut bytes = *digest;
+                                                    bytes[6] = (bytes[6] & 0x0f) | 0x30; // set version 3
+                                                    bytes[8] = (bytes[8] & 0x3f) | 0x80; // set IETF variant
+                                                    Uuid::from_bytes(bytes)
                                                 };
 
                                                 backend_handle.send(MessageToBackend::AddOfflineAccount {

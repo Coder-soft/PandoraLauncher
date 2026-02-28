@@ -34,6 +34,7 @@ hex.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 rand.workspace = true
+md5.workspace = true
 relative-path.workspace = true
 parking_lot.workspace = true
 open.workspace = true
