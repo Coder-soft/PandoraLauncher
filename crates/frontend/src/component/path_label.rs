@@ -1,6 +1,15 @@
-use std::{cell::RefCell, ops::Range, path::{Component, Path}, rc::Rc, sync::{Arc, atomic::AtomicU32}};
+use std::{
+    cell::RefCell,
+    ops::Range,
+    path::{Component, Path},
+    rc::Rc,
+    sync::{atomic::AtomicU32, Arc},
+};
 
-use gpui::{AvailableSpace, Element, ElementId, IntoElement, ParentElement, ShapedLine, SharedString, Size, Style, TextStyle, px};
+use gpui::{
+    px, AvailableSpace, Element, ElementId, IntoElement, ParentElement, ShapedLine, SharedString, Size, Style,
+    TextStyle,
+};
 use gpui_component::button::{Button, ButtonVariants};
 
 use crate::{icon::PandoraIcon, ts};
@@ -13,7 +22,7 @@ pub struct PathLabel {
 impl PathLabel {
     pub fn new(path: impl Into<Arc<Path>>, is_folder: bool) -> Self {
         Self {
-            state: Rc::new(RefCell::new(PathLabelState::new(path.into(), is_folder)))
+            state: Rc::new(RefCell::new(PathLabelState::new(path.into(), is_folder))),
         }
     }
 
@@ -28,7 +37,11 @@ impl PathLabel {
         } else {
             PandoraIcon::File
         };
-        Button::new(id).success().icon(icon).child(self.clone()).tooltip(state.lossy_path_name.clone())
+        Button::new(id)
+            .success()
+            .icon(icon)
+            .child(self.clone())
+            .tooltip(state.lossy_path_name.clone())
     }
 
     pub fn button_opt(label: &Option<Self>, id: impl Into<ElementId>) -> Button {
@@ -63,28 +76,31 @@ struct PathLabelState {
     shaped_divider: Option<ShapedLine>,
     shaped_ellipsis: Option<ShapedLine>,
     min_truncation_info: Option<TruncationInfo>,
-    last_truncation_info: Option<(f32, TruncationInfo)>
+    last_truncation_info: Option<(f32, TruncationInfo)>,
 }
 
 impl PathLabelState {
     fn new(path: Arc<Path>, is_folder: bool) -> Self {
-        let mut fragments: Vec<PathFragment> = path.components().map(|comp| {
-            if matches!(comp, Component::RootDir) {
-                PathFragment {
-                    text: SharedString::new_static("/"),
-                    shaped: None,
-                    needs_divider: false,
-                    can_truncate: false,
+        let mut fragments: Vec<PathFragment> = path
+            .components()
+            .map(|comp| {
+                if matches!(comp, Component::RootDir) {
+                    PathFragment {
+                        text: SharedString::new_static("/"),
+                        shaped: None,
+                        needs_divider: false,
+                        can_truncate: false,
+                    }
+                } else {
+                    PathFragment {
+                        text: SharedString::new(comp.as_os_str().to_string_lossy()),
+                        shaped: None,
+                        needs_divider: true,
+                        can_truncate: !matches!(comp, Component::Prefix(_)),
+                    }
                 }
-            } else {
-                PathFragment {
-                    text: SharedString::new(comp.as_os_str().to_string_lossy()),
-                    shaped: None,
-                    needs_divider: true,
-                    can_truncate: !matches!(comp, Component::Prefix(_))
-                }
-            }
-        }).collect();
+            })
+            .collect();
 
         if let Some(last_fragment) = fragments.last_mut() {
             last_fragment.needs_divider &= is_folder;
@@ -122,7 +138,7 @@ impl PathLabelState {
         if available >= self.full_width {
             TruncationInfo {
                 ignored_range: None,
-                total_width: self.full_width
+                total_width: self.full_width,
             }
         } else {
             let divider_width = self.shaped_divider.as_ref().unwrap().width.as_f32();
@@ -130,8 +146,8 @@ impl PathLabelState {
 
             let mut remaining = self.full_width + divider_width + ellipsis_width;
 
-            let mut start = self.fragments.len()/2;
-            let mut end = self.fragments.len()/2;
+            let mut start = self.fragments.len() / 2;
+            let mut end = self.fragments.len() / 2;
             let mut can_left = true;
             let mut can_right = true;
             let mut left = true;
@@ -139,12 +155,8 @@ impl PathLabelState {
             loop {
                 if (!can_left && !can_right) || remaining <= available {
                     return TruncationInfo {
-                        ignored_range: if start == end {
-                            None
-                        } else {
-                            Some(start..end)
-                        },
-                        total_width: remaining
+                        ignored_range: if start == end { None } else { Some(start..end) },
+                        total_width: remaining,
                     };
                 }
                 if !can_left && left {
@@ -154,11 +166,7 @@ impl PathLabelState {
                     left = true;
                 }
 
-                let mid = if left {
-                    start.saturating_sub(1)
-                } else {
-                    end
-                };
+                let mid = if left { start.saturating_sub(1) } else { end };
 
                 let fragment = &self.fragments[mid];
 
@@ -224,13 +232,28 @@ impl Element for PathLabel {
         {
             let mut state = self.state.borrow_mut();
             if state.last_text_style.as_ref().map(|style| style != &text_style).unwrap_or(true) {
-                let shaped_divider = window.text_system().shape_line(SharedString::new_static("/"), font_size, &[text_style.to_run(1)], None);
+                let shaped_divider = window.text_system().shape_line(
+                    SharedString::new_static("/"),
+                    font_size,
+                    &[text_style.to_run(1)],
+                    None,
+                );
 
-                let shaped_ellipsis = window.text_system().shape_line(SharedString::new_static("…"), font_size, &[text_style.to_run(1)], None);
+                let shaped_ellipsis = window.text_system().shape_line(
+                    SharedString::new_static("…"),
+                    font_size,
+                    &[text_style.to_run("…".len())],
+                    None,
+                );
 
                 let mut full_width = 0.0;
                 for fragment in state.fragments.iter_mut() {
-                    let line = window.text_system().shape_line(fragment.text.clone(), font_size, &[text_style.to_run(fragment.text.len())], None);
+                    let line = window.text_system().shape_line(
+                        fragment.text.clone(),
+                        font_size,
+                        &[text_style.to_run(fragment.text.len())],
+                        None,
+                    );
 
                     full_width += line.width.as_f32();
 
@@ -262,7 +285,8 @@ impl Element for PathLabel {
                 } else {
                     match available_space.width {
                         AvailableSpace::Definite(pixels) => {
-                            last_definite_width.store(pixels.as_f32().ceil() as u32, std::sync::atomic::Ordering::Relaxed);
+                            last_definite_width
+                                .store(pixels.as_f32().ceil() as u32, std::sync::atomic::Ordering::Relaxed);
                             pixels.as_f32().ceil()
                         },
                         AvailableSpace::MinContent => 0.0,
@@ -279,18 +303,30 @@ impl Element for PathLabel {
 
                 if width == 0.0 {
                     if let Some(min_truncation_info) = &state.min_truncation_info {
-                        Size { width: px(min_truncation_info.total_width.ceil()), height: line_height }
+                        Size {
+                            width: px(min_truncation_info.total_width.ceil()),
+                            height: line_height,
+                        }
                     } else {
                         let truncation = state.compute_truncation(0.0);
                         let width = truncation.total_width;
                         state.min_truncation_info = Some(truncation);
-                        Size { width: px(width.ceil()), height: line_height }
+                        Size {
+                            width: px(width.ceil()),
+                            height: line_height,
+                        }
                     }
                 } else if width >= state.full_width {
-                    Size { width: px(state.full_width.ceil()), height: line_height }
+                    Size {
+                        width: px(state.full_width.ceil()),
+                        height: line_height,
+                    }
                 } else {
                     let truncation = state.compute_truncation_cached(width);
-                    Size { width: px(truncation.total_width.ceil()), height: line_height }
+                    Size {
+                        width: px(truncation.total_width.ceil()),
+                        height: line_height,
+                    }
                 }
             }
         });
